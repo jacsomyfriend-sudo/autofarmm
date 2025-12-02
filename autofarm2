@@ -372,7 +372,7 @@ local function executeDuelRoutine()
         end
         
         -- Step 3: After respawning, teleport to lobby
-        task.wait(3)
+        task.wait(2.30)
         updateStatus("Teleporting back to lobby...")
         teleportToRandomLobbyServer()
         
