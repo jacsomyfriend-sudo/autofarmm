@@ -355,12 +355,24 @@ local function executeDuelRoutine()
     
     if shouldReset then
         print("✅ MY TURN TO RESET (Round " .. _G.AltFarmRoundCounter .. ")")
-        updateStatus("🔄 MY TURN - Resetting fast...")
+        updateStatus("🔄 MY TURN - Resetting...")
         
-        -- Fast reset and teleport
+        -- Step 1: Reset character
         resetCharacter()
-        task.wait(0.5) -- Quick wait
         
+        -- Step 2: Wait for respawn
+        task.wait(2)
+        updateStatus("⏳ Waiting for respawn...")
+        local char = waitForCharacterRespawn()
+        
+        if not char then
+            warn("❌ Failed to respawn, retrying...")
+            task.wait(3)
+            return executeDuelRoutine()
+        end
+        
+        -- Step 3: After respawning, teleport to lobby
+        task.wait(1)
         updateStatus("Teleporting back to lobby...")
         teleportToRandomLobbyServer()
         
