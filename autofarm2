@@ -186,14 +186,14 @@ local function updateRound(round)
 end
 
 local function resetCharacter()
-    updateStatus("Resetting character INSTANTLY...")
+    updateStatus("Resetting character...")
     
     local success = pcall(function()
         if LocalPlayer.Character then
             local Humanoid = LocalPlayer.Character:FindFirstChild("Humanoid")
             if Humanoid and Humanoid.Health > 0 then
                 Humanoid.Health = 0
-                print("✅ Character reset initiated INSTANTLY")
+                print("✅ Character reset initiated")
                 return true
             end
         end
@@ -202,38 +202,44 @@ local function resetCharacter()
     return success
 end
 
-local function waitForRespawn()
+local function waitForCharacterRespawn()
     updateStatus("Waiting for respawn...")
-    print("⏳ Waiting for respawn...")
+    print("⏳ Waiting for character respawn...")
     
-    -- Wait for character to respawn
     local character = LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
     
-    local humanoid = character:WaitForChild("Humanoid", 10)
+    -- Wait for humanoid to be added
+    local humanoid = character:WaitForChild("Humanoid", 15)
     if not humanoid then 
         warn("❌ Humanoid not found")
         return nil 
     end
     
-    -- If dead, wait for next character
+    -- If dead, wait for respawn
     if humanoid.Health <= 0 then
+        print("⏳ Character is dead, waiting for respawn...")
+        humanoid.Died:Wait()
         character = LocalPlayer.CharacterAdded:Wait()
-        humanoid = character:WaitForChild("Humanoid", 10)
+        humanoid = character:WaitForChild("Humanoid", 15)
     end
     
-    local hrp = character:WaitForChild("HumanoidRootPart", 10)
+    -- Wait for HumanoidRootPart
+    local hrp = character:WaitForChild("HumanoidRootPart", 15)
     if not hrp then 
         warn("❌ HumanoidRootPart not found")
         return nil 
     end
     
-    print("✅ Respawned!")
+    -- Extra wait for full load
+    task.wait(1)
+    print("✅ Character fully respawned and loaded")
+    
     return character
 end
 
 local function teleportToRandomLobbyServer()
-    updateStatus("Teleporting to lobby NOW...")
-    print("🌀 INSTANT LOBBY TELEPORT...")
+    updateStatus("Finding random lobby server...")
+    print("🌀 Finding random lobby server...")
     
     pcall(function()
         local targetPlaceId = LOBBY_GAME_ID
@@ -252,7 +258,7 @@ local function teleportToRandomLobbyServer()
         until Server
         
         if Server.playing < Server.maxPlayers then
-            print("✅ Found server! Teleporting IMMEDIATELY...")
+            print("✅ Found server! Teleporting...")
             TeleportService:TeleportToPlaceInstance(targetPlaceId, Server.id, LocalPlayer)
         end
     end)
@@ -341,36 +347,42 @@ local function executeDuelRoutine()
     updateStatus("In duel game - Starting routine...")
     updateRound(_G.AltFarmRoundCounter)
     
-    -- **REMOVED ALL WAITS - INSTANT ACTION**
+    -- Wait 3 seconds after loading
+    print("⏳ Waiting 3 seconds after load...")
+    task.wait(3)
     
     local shouldReset = determineAction()
     
     if shouldReset then
         print("✅ MY TURN TO RESET (Round " .. _G.AltFarmRoundCounter .. ")")
-        updateStatus("🔄 MY TURN - Resetting INSTANTLY...")
+        updateStatus("🔄 MY TURN - Resetting...")
         
-        -- Step 1: INSTANT Reset - NO DELAY
+        -- Step 1: Reset character
         resetCharacter()
         
-        -- Step 2: Wait ONLY for respawn (minimal)
-        local char = waitForRespawn()
+        -- Step 2: Wait for respawn
+        task.wait(0.5)
+        updateStatus("⏳ Waiting for respawn...")
+        local char = waitForCharacterRespawn()
         
         if not char then
             warn("❌ Failed to respawn, retrying...")
-            task.wait(1)
+            task.wait(3)
             return executeDuelRoutine()
         end
         
-        -- Step 3: IMMEDIATELY teleport to lobby after respawn - NO DELAY
-        updateStatus("Teleporting back to lobby INSTANTLY...")
+        -- Step 3: After respawning, teleport to lobby
+        task.wait(1)
+        updateStatus("Teleporting back to lobby...")
         teleportToRandomLobbyServer()
         
-        print("✅ Duel routine complete - INSTANT teleport to lobby")
+        print("✅ Duel routine complete - teleporting to random lobby server")
         
     else
         print("⏳ OTHER ALT'S TURN - Staying in match (Round " .. _G.AltFarmRoundCounter .. ")")
         updateStatus("⏳ Waiting in match (other alt resets)")
         
+        -- Just wait here, the other alt will reset and come back
         print("✅ Staying in duel, waiting for completion...")
     end
     
@@ -386,18 +398,19 @@ local function executeLobbyRoutine()
     
     -- Only teleport once when entering lobby
     if not _G.LobbyTeleportDone then
-        -- Step 1: Minimal wait for character
+        -- Step 1: Wait for character to load
         print("⏳ Waiting for character to load...")
-        task.wait(1.5)
+        task.wait(2)
+        local char = waitForCharacterRespawn()
         
-        local char = LocalPlayer.Character
-        if not char or not char:FindFirstChild("HumanoidRootPart") then
+        if not char then
             warn("❌ Character failed to load in lobby")
             return
         end
         
         -- Step 2: Teleport to spawn position ONCE
         print("📍 Teleporting to spawn position...")
+        task.wait(1)
         teleportToPosition(LOBBY_SPAWN_POSITION)
         
         -- Mark teleport as done
@@ -436,13 +449,13 @@ local function checkAndExecute()
         updateStatus("Detected: Duel Game")
         -- Reset lobby teleport flag when entering duel
         _G.LobbyTeleportDone = false
-        -- **REMOVED WAIT - INSTANT EXECUTION**
+        task.wait(1)
         executeDuelRoutine()
         
     elseif currentGameId == LOBBY_GAME_ID then
         print("✅ LOBBY DETECTED!")
         updateStatus("Detected: Lobby")
-        task.wait(0.5)
+        task.wait(1)
         executeLobbyRoutine()
         
     else
@@ -451,9 +464,10 @@ local function checkAndExecute()
     end
 end
 
--- **INSTANT EXECUTION - NO DELAY**
+-- Execute after a short delay
 task.spawn(function()
-    print("⚡ Starting routine IMMEDIATELY...")
+    print("⏳ Waiting 2 seconds before starting routine...")
+    task.wait(2)
     checkAndExecute()
 end)
 
@@ -464,7 +478,7 @@ end)
 TeleportService.TeleportInitFailed:Connect(function(player, result, errorMessage)
     warn("❌ Teleport failed: " .. errorMessage)
     updateStatus("❌ Teleport failed - Retrying...")
-    task.wait(2)
+    task.wait(3)
     teleportToRandomLobbyServer()
 end)
 
@@ -481,11 +495,11 @@ RunService.Heartbeat:Connect(function()
         if currentGame == DUEL_GAME_ID then
             print("🎮 Entered duel game!")
             _G.LobbyTeleportDone = false -- Reset flag
-            -- **INSTANT EXECUTION**
+            task.wait(1)
             checkAndExecute()
         elseif currentGame == LOBBY_GAME_ID then
             print("🏠 Entered lobby!")
-            task.wait(0.5)
+            task.wait(1)
             checkAndExecute()
         end
     end
