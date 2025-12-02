@@ -1,0 +1,515 @@
+-- //////////////////////////////////////////////////////////////
+-- //  DUAL ALT FARM - FIXED AUTO EXECUTION SCRIPT
+-- //////////////////////////////////////////////////////////////
+
+-- Configuration
+local delay = getgenv().delay or 4
+local firstAcc = getgenv().firstAcc or "WVWWWWWVWWWWWWWWWW"
+local secondAcc = getgenv().secondAcc or "WVWWWWWVWWWWWWWWWWW"
+
+local TeleportService = game:GetService("TeleportService")
+local Players = game:GetService("Players")
+local LocalPlayer = Players.LocalPlayer
+local UserInputService = game:GetService("UserInputService")
+local RunService = game:GetService("RunService")
+
+local DUEL_GAME_ID = 10449761463
+local LOBBY_GAME_ID = 12360882630
+local LOBBY_JOB_ID = "c72d9fd7-d17a-4bc8-b67a-e7d7dcfaef3a"
+local LOBBY_SPAWN_POSITION = Vector3.new(181, 439, -1076)
+
+-- Ensure we wait for player to fully load
+if not LocalPlayer then
+    Players:GetPropertyChangedSignal("LocalPlayer"):Wait()
+    LocalPlayer = Players.LocalPlayer
+end
+
+repeat task.wait() until LocalPlayer
+
+print([[
+╔══════════════════════════════════════════════════════════╗
+║            🤖 DUAL ALT FARM AUTO EXECUTE 🤖              ║
+╚══════════════════════════════════════════════════════════╝
+
+Configuration:
+  • Delay: ]] .. delay .. [[ seconds
+  • First Account: ]] .. firstAcc .. [[
+
+  • Second Account: ]] .. secondAcc .. [[
+
+  • Current Account: ]] .. LocalPlayer.Name .. [[
+
+]])
+
+-- //////////////////////////////////////////////////////////////
+-- // BLACK SCREEN OVERLAY WITH RANK DISPLAY
+-- //////////////////////////////////////////////////////////////
+
+local PlayerGui = LocalPlayer:WaitForChild("PlayerGui", 10)
+
+-- Create or get existing GUI
+local ScreenGui = PlayerGui:FindFirstChild("AltFarmGui")
+if ScreenGui then
+    ScreenGui:Destroy()
+end
+
+ScreenGui = Instance.new("ScreenGui")
+ScreenGui.Name = "AltFarmGui"
+ScreenGui.ResetOnSpawn = false
+ScreenGui.IgnoreGuiInset = true
+ScreenGui.DisplayOrder = 999999
+ScreenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+
+-- Wait a moment before parenting to ensure it loads
+task.wait(0.5)
+ScreenGui.Parent = PlayerGui
+
+-- Black Screen
+local BlackScreen = Instance.new("Frame")
+BlackScreen.Name = "BlackScreen"
+BlackScreen.Size = UDim2.new(1, 0, 1, 100)
+BlackScreen.Position = UDim2.new(0, 0, 0, -50)
+BlackScreen.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+BlackScreen.BorderSizePixel = 0
+BlackScreen.ZIndex = 999998
+BlackScreen.Visible = true
+BlackScreen.Parent = ScreenGui
+
+-- Account Name Display
+local AccountLabel = Instance.new("TextLabel")
+AccountLabel.Name = "AccountLabel"
+AccountLabel.Size = UDim2.new(0, 500, 0, 50)
+AccountLabel.Position = UDim2.new(0.5, -250, 0.3, 0)
+AccountLabel.BackgroundTransparency = 1
+AccountLabel.Text = "Account: " .. LocalPlayer.Name
+AccountLabel.Font = Enum.Font.GothamBold
+AccountLabel.TextSize = 32
+AccountLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+AccountLabel.TextStrokeTransparency = 0.5
+AccountLabel.ZIndex = 999999
+AccountLabel.Parent = BlackScreen
+
+-- Rank Display
+local RankLabel = Instance.new("TextLabel")
+RankLabel.Name = "RankLabel"
+RankLabel.Size = UDim2.new(0, 400, 0, 100)
+RankLabel.Position = UDim2.new(0.5, -200, 0.45, 0)
+RankLabel.BackgroundTransparency = 1
+RankLabel.Text = "👑\nLoading Rank...\n👑"
+RankLabel.Font = Enum.Font.GothamBold
+RankLabel.TextSize = 48
+RankLabel.TextColor3 = Color3.fromRGB(255, 215, 0) -- Gold
+RankLabel.TextStrokeTransparency = 0.3
+RankLabel.TextStrokeColor3 = Color3.fromRGB(139, 69, 19)
+RankLabel.ZIndex = 999999
+RankLabel.Parent = BlackScreen
+
+-- Status Label
+local StatusLabel = Instance.new("TextLabel")
+StatusLabel.Name = "StatusLabel"
+StatusLabel.Size = UDim2.new(0, 700, 0, 50)
+StatusLabel.Position = UDim2.new(0.5, -350, 0.65, 0)
+StatusLabel.BackgroundTransparency = 1
+StatusLabel.Text = "🔄 Initializing Farm System..."
+StatusLabel.Font = Enum.Font.Gotham
+StatusLabel.TextSize = 26
+StatusLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+StatusLabel.TextStrokeTransparency = 0.5
+StatusLabel.ZIndex = 999999
+StatusLabel.Parent = BlackScreen
+
+-- Round Counter Display
+local RoundLabel = Instance.new("TextLabel")
+RoundLabel.Name = "RoundLabel"
+RoundLabel.Size = UDim2.new(0, 400, 0, 40)
+RoundLabel.Position = UDim2.new(0.5, -200, 0.75, 0)
+RoundLabel.BackgroundTransparency = 1
+RoundLabel.Text = "Round: 1"
+RoundLabel.Font = Enum.Font.GothamBold
+RoundLabel.TextSize = 28
+RoundLabel.TextColor3 = Color3.fromRGB(100, 255, 100)
+RoundLabel.TextStrokeTransparency = 0.5
+RoundLabel.ZIndex = 999999
+RoundLabel.Parent = BlackScreen
+
+print("✅ Black screen GUI created and visible")
+
+-- Toggle black screen with P key
+local blackScreenEnabled = true
+UserInputService.InputBegan:Connect(function(input, gameProcessed)
+    if gameProcessed then return end
+    if input.KeyCode == Enum.KeyCode.P then
+        blackScreenEnabled = not blackScreenEnabled
+        BlackScreen.Visible = blackScreenEnabled
+        print(blackScreenEnabled and "🖤 Black screen ENABLED" or "👁️ Black screen DISABLED")
+    end
+end)
+
+-- Update rank display
+task.spawn(function()
+    task.wait(2)
+    
+    pcall(function()
+        local ls = LocalPlayer:WaitForChild("leaderstats", 10)
+        if not ls then 
+            RankLabel.Text = "👑\nNo Rank Data\n👑"
+            return 
+        end
+        
+        local rank = ls:FindFirstChild("Solo Rank") or ls:FindFirstChild("Rank")
+        if not rank then 
+            RankLabel.Text = "👑\nNo Rank Found\n👑"
+            return 
+        end
+        
+        RankLabel.Text = "👑\n" .. tostring(rank.Value) .. "\n👑"
+        print("📊 Rank loaded: " .. tostring(rank.Value))
+        
+        rank:GetPropertyChangedSignal("Value"):Connect(function()
+            RankLabel.Text = "👑\n" .. tostring(rank.Value) .. "\n👑"
+            print("📊 Rank updated: " .. tostring(rank.Value))
+        end)
+    end)
+end)
+
+-- //////////////////////////////////////////////////////////////
+-- // UTILITY FUNCTIONS
+-- //////////////////////////////////////////////////////////////
+
+local function updateStatus(message)
+    StatusLabel.Text = "🔄 " .. message
+    print("📊 " .. message)
+end
+
+local function updateRound(round)
+    RoundLabel.Text = "Round: " .. round
+end
+
+local function resetCharacter()
+    updateStatus("Resetting character...")
+    
+    local success = pcall(function()
+        if LocalPlayer.Character then
+            local Humanoid = LocalPlayer.Character:FindFirstChild("Humanoid")
+            if Humanoid and Humanoid.Health > 0 then
+                Humanoid.Health = 0
+                print("✅ Character reset initiated")
+                return true
+            end
+        end
+    end)
+    
+    return success
+end
+
+local function waitForCharacterRespawn()
+    updateStatus("Waiting for respawn...")
+    print("⏳ Waiting for character respawn...")
+    
+    local character = LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
+    
+    -- Wait for humanoid to be added
+    local humanoid = character:WaitForChild("Humanoid", 15)
+    if not humanoid then 
+        warn("❌ Humanoid not found")
+        return nil 
+    end
+    
+    -- If dead, wait for respawn
+    if humanoid.Health <= 0 then
+        print("⏳ Character is dead, waiting for respawn...")
+        humanoid.Died:Wait()
+        character = LocalPlayer.CharacterAdded:Wait()
+        humanoid = character:WaitForChild("Humanoid", 15)
+    end
+    
+    -- Wait for HumanoidRootPart
+    local hrp = character:WaitForChild("HumanoidRootPart", 15)
+    if not hrp then 
+        warn("❌ HumanoidRootPart not found")
+        return nil 
+    end
+    
+    -- Extra wait for full load
+    task.wait(2)
+    print("✅ Character fully respawned and loaded")
+    
+    return character
+end
+
+local function teleportToLobby()
+    updateStatus("Teleporting to lobby...")
+    print("🌀 Initiating teleport to lobby...")
+    
+    pcall(function()
+        TeleportService:TeleportToPlaceInstance(LOBBY_GAME_ID, LOBBY_JOB_ID, LocalPlayer)
+    end)
+    
+    print("✅ Teleport request sent")
+end
+
+local function teleportToPosition(position)
+    updateStatus("Moving to spawn position...")
+    
+    local character = LocalPlayer.Character
+    if not character then 
+        warn("❌ No character found for teleport")
+        return false 
+    end
+    
+    local hrp = character:FindFirstChild("HumanoidRootPart")
+    if not hrp then 
+        warn("❌ No HumanoidRootPart found for teleport")
+        return false 
+    end
+    
+    hrp.CFrame = CFrame.new(position)
+    print("✅ Teleported to position: " .. tostring(position))
+    return true
+end
+
+local function getCurrentGameId()
+    return game.PlaceId
+end
+
+-- //////////////////////////////////////////////////////////////
+-- // ACCOUNT ROLES
+-- //////////////////////////////////////////////////////////////
+
+local isFirstAccount = (LocalPlayer.Name == firstAcc)
+local isSecondAccount = (LocalPlayer.Name == secondAcc)
+
+if not isFirstAccount and not isSecondAccount then
+    warn("⚠️ Account not configured: " .. LocalPlayer.Name)
+    updateStatus("❌ Not a configured account!")
+    RankLabel.Text = "❌\nNot Configured\n❌"
+    return
+end
+
+local accountRole = isFirstAccount and "FIRST (Alt 1)" or "SECOND (Alt 2)"
+print("✅ Account Role: " .. accountRole)
+updateStatus("Account: " .. accountRole)
+
+-- Round counter (persistent across teleports)
+if not _G.AltFarmRoundCounter then
+    _G.AltFarmRoundCounter = 1
+end
+
+-- //////////////////////////////////////////////////////////////
+-- // MAIN FARMING LOGIC
+-- //////////////////////////////////////////////////////////////
+
+local function determineAction()
+    local round = _G.AltFarmRoundCounter
+    local shouldReset = false
+    
+    -- Alternating logic:
+    -- Odd rounds (1,3,5...): Alt 2 resets
+    -- Even rounds (2,4,6...): Alt 1 resets
+    
+    if round % 2 == 1 then
+        shouldReset = isSecondAccount
+        print("📊 Round " .. round .. " (Odd): Alt 2 should reset")
+    else
+        shouldReset = isFirstAccount
+        print("📊 Round " .. round .. " (Even): Alt 1 should reset")
+    end
+    
+    return shouldReset
+end
+
+local function executeDuelRoutine()
+    print("\n" .. string.rep("=", 60))
+    print("🎮 EXECUTING DUEL ROUTINE")
+    print(string.rep("=", 60))
+    
+    updateStatus("In duel game - Starting routine...")
+    updateRound(_G.AltFarmRoundCounter)
+    
+    -- Wait 3 seconds after loading
+    print("⏳ Waiting 3 seconds after load...")
+    task.wait(3)
+    
+    local shouldReset = determineAction()
+    
+    if shouldReset then
+        print("✅ MY TURN TO RESET (Round " .. _G.AltFarmRoundCounter .. ")")
+        updateStatus("🔄 MY TURN - Resetting...")
+        
+        -- Step 1: Reset character
+        task.wait(1)
+        resetCharacter()
+        
+        -- Step 2: Wait for respawn
+        task.wait(4)
+        local char = waitForCharacterRespawn()
+        
+        if not char then
+            warn("❌ Failed to respawn, retrying...")
+            task.wait(3)
+            return executeDuelRoutine()
+        end
+        
+        -- Step 3: Teleport to lobby
+        task.wait(2)
+        updateStatus("Teleporting to lobby...")
+        teleportToLobby()
+        
+        print("✅ Duel routine complete - waiting for lobby load")
+        
+    else
+        print("⏳ OTHER ALT'S TURN - Staying in match (Round " .. _G.AltFarmRoundCounter .. ")")
+        updateStatus("⏳ Waiting in match (other alt resets)")
+        
+        -- Just wait here, the other alt will reset and come back
+        print("✅ Staying in duel, waiting for completion...")
+    end
+    
+    print(string.rep("=", 60) .. "\n")
+end
+
+local function executeLobbyRoutine()
+    print("\n" .. string.rep("=", 60))
+    print("🏠 EXECUTING LOBBY ROUTINE")
+    print(string.rep("=", 60))
+    
+    updateStatus("In lobby - Preparing for next round...")
+    
+    -- Step 1: Wait for character to load
+    print("⏳ Waiting for character to load...")
+    task.wait(3)
+    local char = waitForCharacterRespawn()
+    
+    if not char then
+        warn("❌ Character failed to load in lobby")
+        return
+    end
+    
+    -- Step 2: Teleport to spawn position
+    print("📍 Teleporting to spawn position...")
+    task.wait(2)
+    teleportToPosition(LOBBY_SPAWN_POSITION)
+    
+    -- Step 3: Reset in lobby
+    print("🔄 Resetting in lobby...")
+    task.wait(2)
+    resetCharacter()
+    
+    -- Step 4: Wait for respawn
+    task.wait(4)
+    waitForCharacterRespawn()
+    
+    -- Step 5: Increment round counter
+    _G.AltFarmRoundCounter = _G.AltFarmRoundCounter + 1
+    updateRound(_G.AltFarmRoundCounter)
+    
+    print("✅ LOBBY ROUTINE COMPLETE - Ready for Round " .. _G.AltFarmRoundCounter)
+    updateStatus("✅ Ready for next duel (Round " .. _G.AltFarmRoundCounter .. ")")
+    
+    print(string.rep("=", 60) .. "\n")
+end
+
+-- //////////////////////////////////////////////////////////////
+-- // AUTO EXECUTION BASED ON GAME
+-- //////////////////////////////////////////////////////////////
+
+local hasExecuted = false
+
+local function checkAndExecute()
+    if hasExecuted then return end
+    hasExecuted = true
+    
+    local currentGameId = getCurrentGameId()
+    
+    print("\n🔍 Checking current game ID: " .. currentGameId)
+    
+    if currentGameId == DUEL_GAME_ID then
+        print("✅ DUEL GAME DETECTED!")
+        updateStatus("Detected: Duel Game")
+        task.wait(1)
+        executeDuelRoutine()
+        
+    elseif currentGameId == LOBBY_GAME_ID then
+        print("✅ LOBBY DETECTED!")
+        updateStatus("Detected: Lobby")
+        task.wait(1)
+        executeLobbyRoutine()
+        
+    else
+        print("❓ Unknown game ID: " .. currentGameId)
+        updateStatus("Unknown game - Waiting...")
+    end
+end
+
+-- Execute after a short delay
+task.spawn(function()
+    print("⏳ Waiting 3 seconds before starting routine...")
+    task.wait(3)
+    checkAndExecute()
+end)
+
+-- //////////////////////////////////////////////////////////////
+-- // TELEPORT MONITORING
+-- //////////////////////////////////////////////////////////////
+
+TeleportService.TeleportInitFailed:Connect(function(player, result, errorMessage)
+    warn("❌ Teleport failed: " .. errorMessage)
+    updateStatus("❌ Teleport failed - Retrying...")
+    task.wait(3)
+    hasExecuted = false
+    checkAndExecute()
+end)
+
+-- Monitor game changes
+RunService.Heartbeat:Connect(function()
+    local currentGame = getCurrentGameId()
+    
+    if currentGame == LOBBY_GAME_ID and not hasExecuted then
+        print("🏠 Arrived in lobby!")
+        task.wait(2)
+        hasExecuted = true
+        executeLobbyRoutine()
+    end
+end)
+
+-- //////////////////////////////////////////////////////////////
+-- // GLOBAL COMMANDS
+-- //////////////////////////////////////////////////////////////
+
+_G.stopFarm = function()
+    updateStatus("❌ Farm manually stopped")
+    print("⏹️ Farm stopped!")
+    if ScreenGui then ScreenGui:Destroy() end
+end
+
+_G.resetRound = function()
+    _G.AltFarmRoundCounter = 1
+    updateRound(1)
+    print("🔄 Round counter reset to 1")
+end
+
+_G.farmStatus = function()
+    print("\n📊 FARM STATUS")
+    print("  Account: " .. LocalPlayer.Name)
+    print("  Role: " .. accountRole)
+    print("  Game ID: " .. getCurrentGameId())
+    print("  Round: " .. _G.AltFarmRoundCounter)
+    print("  Next Action: " .. (determineAction() and "RESET & RETURN" or "STAY IN MATCH"))
+    print("")
+end
+
+_G.skipToLobby = function()
+    print("⏭️ Manually skipping to lobby...")
+    teleportToLobby()
+end
+
+print("\n💡 Commands:")
+print("  • _G.stopFarm() - Stop the farm")
+print("  • _G.resetRound() - Reset to Round 1")
+print("  • _G.farmStatus() - Check current status")
+print("  • _G.skipToLobby() - Force teleport to lobby")
+print("  • Press P - Toggle black screen")
+print("\n" .. string.rep("=", 60))
+
+print("✅ AUTO-FARM FULLY LOADED AND READY!")
+updateStatus("✅ System loaded - Round " .. _G.AltFarmRoundCounter)
