@@ -231,7 +231,7 @@ local function waitForCharacterRespawn()
     end
     
     -- Extra wait for full load
-    task.wait(5.5)
+    task.wait(1)
     print("✅ Character fully respawned and loaded")
     
     return character
