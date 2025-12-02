@@ -361,7 +361,7 @@ local function executeDuelRoutine()
         resetCharacter()
         
         -- Step 2: Wait for respawn
-        task.wait(5.5)
+        task.wait(2)
         updateStatus("⏳ Waiting for respawn...")
         local char = waitForCharacterRespawn()
         
@@ -372,7 +372,7 @@ local function executeDuelRoutine()
         end
         
         -- Step 3: After respawning, teleport to lobby
-        task.wait(1)
+        task.wait(3)
         updateStatus("Teleporting back to lobby...")
         teleportToRandomLobbyServer()
         
