@@ -1,14 +1,4 @@
 
-local delay = getgenv().delay or 4
-local firstAcc = getgenv().firstAcc or "PhandomLions"
-local secondAcc = getgenv().secondAcc or "WVWWWWWVWWWWWWWWWWW"
-_G.AltFarmShared = _G.AltFarmShared or {
-    Round = 1,
-    Alt1Ready = false,
-    Alt2Ready = false
-}
-
-
 local function getRound()
     return _G.AltFarmShared.Round
 end
