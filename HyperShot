@@ -1,0 +1,270 @@
+local cfg = getgenv().CamlockSettings or {}
+local ntf = loadstring(game:HttpGet("https://raw.githubusercontent.com/lobox920/Notification-Library/Main/Library.lua"))()
+
+local plrs = game:GetService("Players")
+local uis = game:GetService("UserInputService")
+local rs = game:GetService("RunService")
+local ws = game:GetService("Workspace")
+
+local lp = plrs.LocalPlayer
+local cam = ws.CurrentCamera
+local mobs = ws:FindFirstChild("Mobs")
+
+local modes = {"Both","Bot","Player"}
+local modei = 1
+local mode = "Both"
+
+local on = false
+local mdl = nil
+local prt = nil
+local hl = nil
+
+-- FOV Settings
+local fovDistance = cfg.AutoLockRadius or 100 -- Default 100, range 10-200
+local fovIncrement = 5 -- How much to increase/decrease per key press
+
+local aimIsMouse = cfg.AimlockKey == "MouseButton2"
+local aimKey = aimIsMouse and Enum.UserInputType.MouseButton2 or Enum.KeyCode[(cfg.AimlockKey or "E")]
+local modeKey = Enum.KeyCode[(cfg.ModeSwitchKey or "C")]
+local fovIncreaseKey = Enum.KeyCode.Up -- Increase FOV with UP arrow
+local fovDecreaseKey = Enum.KeyCode.Down -- Decrease FOV with DOWN arrow
+local aimType = cfg.AimMode or "Toggle"
+local rot = not (cfg.RotateCharacter == false)
+local zoom = not (cfg.UnlockZoom == false)
+local legit = cfg.LegitMode == true
+local pred = cfg.UsePrediction == true
+local poff = cfg.PredictionOffset or 2
+local lockm = cfg.ForceMouseLock == true
+
+if zoom then
+    pcall(function()
+        lp.CameraMaxZoomDistance = 999
+        lp.CameraMinZoomDistance = 0.5
+    end)
+end
+
+local function n(t,x)
+    ntf:SendNotification(t,x,3)
+end
+
+local function isBot(m)
+    return mobs and m:IsDescendantOf(mobs)
+end
+
+local function isEnemy(m)
+    local c = lp.Character
+    if not c then return false end
+    local mt = c:GetAttribute("Team")
+    local tt = m:GetAttribute("Team")
+    if not mt or mt == -1 then return true end
+    if not tt then return true end
+    return mt ~= tt
+end
+
+local function allow(m)
+    local b = isBot(m)
+    if mode == "Both" then return true end
+    if mode == "Bot" and b then return true end
+    if mode == "Player" and not b then return true end
+    return false
+end
+
+local function mkhl(m)
+    if hl then hl:Destroy() end
+    local h = Instance.new("Highlight")
+    h.FillTransparency = .5
+    h.OutlineTransparency = 0
+    h.FillColor = Color3.fromRGB(255,0,0)
+    h.OutlineColor = Color3.fromRGB(255,255,255)
+    h.Adornee = m
+    h.Parent = m
+    hl = h
+end
+
+local function clr()
+    if hl then hl:Destroy() end
+    hl = nil
+end
+
+local function sw()
+    modei = modei + 1
+    if modei > #modes then modei = 1 end
+    mode = modes[modei]
+    n("Info","Mode: "..mode)
+end
+
+local function setFOV(value)
+    if value < 10 then value = 10 end
+    if value > 200 then value = 200 end
+    fovDistance = value
+    n("Info","FOV Distance: "..fovDistance.."m")
+end
+
+local function getList()
+    local t = {}
+    if mobs then
+        for _,m in ipairs(mobs:GetChildren()) do
+            local fh = m:FindFirstChild("FakeHRP")
+            if fh and isEnemy(m) and allow(m) then
+                table.insert(t,{m=m,p=fh,b=true})
+            end
+        end
+    end
+    for _,m in ipairs(ws:GetChildren()) do
+        if m ~= lp.Character and m:IsA("Model") then
+            local h = m:FindFirstChildOfClass("Humanoid")
+            local hrp = m:FindFirstChild("HumanoidRootPart")
+            if h and hrp and h.Health > 0 and isEnemy(m) and allow(m) then
+                table.insert(t,{m=m,p=hrp,b=false})
+            end
+        end
+    end
+    return t
+end
+
+local function look()
+    if not cam then
+        cam = ws.CurrentCamera
+        if not cam then return nil end
+    end
+    local mid = cam.ViewportSize/2
+    local md = 999999
+    local best = nil
+    for _,d in ipairs(getList()) do
+        local v,on = cam:WorldToViewportPoint(d.p.Position)
+        if on then
+            local dist = (Vector2.new(v.X,v.Y)-mid).Magnitude
+            if dist < md then
+                md = dist
+                best = d
+            end
+        end
+    end
+    return best
+end
+
+local function near(r)
+    local c = lp.Character
+    if not c then return nil end
+    local hrp = c:FindFirstChild("HumanoidRootPart")
+    if not hrp then return nil end
+    local md = r
+    local best = nil
+    for _,d in ipairs(getList()) do
+        local dist = (d.p.Position-hrp.Position).Magnitude
+        if dist < md then
+            md = dist
+            best = d
+        end
+    end
+    return best
+end
+
+local function lock(d)
+    on = true
+    mdl = d.m
+    prt = d.p
+    mkhl(mdl)
+    n("Success","Locked onto "..d.m.Name.." ["..(d.b and "BOT" or "REAL").."]")
+end
+
+local function unl()
+    on = false
+    mdl = nil
+    prt = nil
+    clr()
+    n("Info","Unlocked")
+end
+
+local function isAimInput(i)
+    if aimIsMouse then
+        return i.UserInputType == aimKey
+    else
+        return i.KeyCode == aimKey
+    end
+end
+
+-- Print startup info
+n("Info","FOV Distance: "..fovDistance.."m (UP/DOWN to adjust)")
+
+uis.InputBegan:Connect(function(i,g)
+    if g then return end
+
+    if i.KeyCode == modeKey then
+        sw()
+    end
+
+    if i.KeyCode == fovIncreaseKey then
+        setFOV(fovDistance + fovIncrement)
+    end
+
+    if i.KeyCode == fovDecreaseKey then
+        setFOV(fovDistance - fovIncrement)
+    end
+
+    if aimType == "Hold" then
+        if isAimInput(i) then
+            if not on then
+                local d = look()
+                if d then lock(d) else n("Warning","No target found") end
+            end
+        end
+    else
+        if isAimInput(i) then
+            if on then
+                unl()
+            else
+                local d = look()
+                if d then lock(d) else n("Warning","No target found") end
+            end
+        end
+    end
+end)
+
+uis.InputEnded:Connect(function(i)
+    if aimType == "Hold" and isAimInput(i) then
+        unl()
+    end
+end)
+
+rs.RenderStepped:Connect(function()
+    if not on or not mdl or not prt then return end
+
+    if lockm then
+        uis.MouseBehavior = Enum.MouseBehavior.LockCenter
+    end
+
+    if not mdl.Parent or not isEnemy(mdl) or not allow(mdl) then
+        unl()
+        local nxt = near(fovDistance)
+        if nxt then lock(nxt) end
+        return
+    end
+
+    local c = lp.Character
+    if not c then return end
+    local hrp = c:FindFirstChild("HumanoidRootPart")
+    local h = c:FindFirstChild("Humanoid")
+    if not hrp or not h then return end
+
+    h.AutoRotate = not rot
+
+    local aim = prt.Position
+    if pred then
+        aim = aim + prt.Velocity * poff
+    end
+    if legit then
+        aim = aim + Vector3.new(
+            math.random(-3,3)/100,
+            math.random(-3,3)/100,
+            math.random(-3,3)/100
+        )
+    end
+
+    cam.CFrame = CFrame.new(cam.CFrame.Position, aim)
+
+    if rot then
+        local d = (aim - hrp.Position).Unit
+        hrp.CFrame = CFrame.new(hrp.Position, hrp.Position + Vector3.new(d.X,0,d.Z))
+    end
+end)
