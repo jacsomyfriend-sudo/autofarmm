@@ -5,16 +5,13 @@ print("started")
 _G.toggle = true
 local HttpService = game:GetService("HttpService")
 local JSON_FILE = "farm_count.json"
-local LOBBY_FILE = "lobby_place.json"
 local PLACE_ID = 12360882630
 local Players = game:GetService("Players")
 local TeleportService = game:GetService("TeleportService")
 local localPlayer = Players.LocalPlayer
 
--- ======= TURN COUNT =======
-
-local function getCount()
-    if not (readfile and isfile and isfile(JSON_FILE)) then
+function getCount()
+    if not (readfile and isfile(JSON_FILE)) then
         return 1
     end
     
@@ -37,37 +34,6 @@ local function updateCount(newCount)
     end
     return false
 end
-
--- ======= LOBBY PLACE ID (RANDOM) =======
-
-local function getLobbyPlaceId()
-    if not (readfile and isfile and isfile(LOBBY_FILE)) then
-        return nil
-    end
-
-    local ok, result = pcall(function()
-        local file = readfile(LOBBY_FILE)
-        local data = HttpService:JSONDecode(file)
-        return data.placeId
-    end)
-
-    if ok then
-        return result
-    end
-    return nil
-end
-
-local function updateLobbyPlaceId(placeId)
-    if not writefile then
-        return
-    end
-
-    local data = {placeId = placeId}
-    local json = HttpService:JSONEncode(data)
-    writefile(LOBBY_FILE, json)
-end
-
--- ======= ACCOUNT PRESENCE =======
 
 local function areBothAccountsInServer()
     if not _G.acc1 or not _G.acc2 then
@@ -93,25 +59,23 @@ local function areBothAccountsInServer()
     return acc1InServer and acc2InServer
 end
 
--- When one of the linked accounts leaves, follow them back to the last known lobby
+-- NEW: if one of the two linked accounts leaves this server,
+-- teleport the remaining one back to PLACE_ID (lobby) too.
 local function onPlayerRemoving(player)
     if not _G.toggle then return end
     if not _G.acc1 or not _G.acc2 then return end
 
+    -- only care about your two accounts
     if player.Name == _G.acc1 or player.Name == _G.acc2 then
-        -- Only act if the *other* linked account (local) is still here
+        -- if the one leaving is NOT you, you are the other account
         if player ~= localPlayer then
-            local lobbyId = getLobbyPlaceId()
-            if lobbyId and lobbyId ~= game.PlaceId then
-                TeleportService:Teleport(lobbyId, localPlayer)
-            end
+            -- usually this happens inside a run (not lobby), so send you to lobby
+            TeleportService:Teleport(PLACE_ID, localPlayer)
         end
     end
 end
 
 Players.PlayerRemoving:Connect(onPlayerRemoving)
-
--- ======= MAIN SCRIPT =======
 
 if _G.toggle then
 
@@ -198,9 +162,7 @@ task.spawn(function()
 end)
 
 local tped = false
-
 if game.PlaceId == PLACE_ID then
-    -- In farm place: wait for both accounts, then move to farm CFrame
     repeat 
         task.wait()
     until areBothAccountsInServer()
@@ -210,14 +172,10 @@ if game.PlaceId == PLACE_ID then
     end
 
 else
-    -- In *any* lobby (random place IDs): remember this as the lobby ID
-    updateLobbyPlaceId(game.PlaceId)
 
     repeat 
         task.wait()
-    until areBothAccountsInServer()
-        and localPlayer.Character
-        and localPlayer.Character:FindFirstChild("HumanoidRootPart")
+    until areBothAccountsInServer() and localPlayer.Character and localPlayer.Character:FindFirstChild("HumanoidRootPart")
 
     game:GetService("StarterGui"):SetCore("SendNotification", {
         Title = getCount(), 
@@ -248,12 +206,12 @@ else
         localPlayer.CharacterAdded:Wait()
 
         tped = true
-        task.wait(0) 
+        wait(0) 
         TeleportService:Teleport(PLACE_ID, localPlayer)
     end
     
     repeat
-        task.wait()
+        wait()
     until tped
 
     if getCount() == 1 then
