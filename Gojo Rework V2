@@ -1,4 +1,4 @@
--- ================== NOAH'S RANKED DUELS AUTOFARM v5 ==================
+-- ================== NOAH'S RANKED DUELS AUTOFARM v6 ==================
 repeat task.wait() until game:IsLoaded()
 
 if game.Players.LocalPlayer.Name ~= "NoahSt3alth16" then
@@ -16,7 +16,7 @@ local LOBBY_ID = 15424972165
 local MATCH_ID = 15486406772
 local FARM_CFRAME = CFrame.new(35, 18, -66)
 
-print("✅ Noah's Ranked Autofarm v5 Loaded (Improved Teleport)")
+print("✅ Noah's Ranked Autofarm v6 Loaded")
 
 local function isAcc2InLobby()
     for _, plr in ipairs(Players:GetPlayers()) do
@@ -27,25 +27,19 @@ local function isAcc2InLobby()
     return false
 end
 
-local function goToPosition()
+local function forceTeleport()
     if game.PlaceId ~= LOBBY_ID then return end
+    if not isAcc2InLobby() then return end
 
-    -- Wait until irundhcom is detected
-    if not isAcc2InLobby() then
-        print("Waiting for irundhcom to appear in lobby...")
-        repeat
-            task.wait(0.4)
-        until isAcc2InLobby() or game.PlaceId ~= LOBBY_ID
+    local char = localPlayer.Character
+    if not char then 
+        char = localPlayer.CharacterAdded:Wait()
     end
-
-    if game.PlaceId ~= LOBBY_ID then return end
-
-    -- Teleport Noah
-    local char = localPlayer.Character or localPlayer.CharacterAdded:Wait()
-    local hrp = char:WaitForChild("HumanoidRootPart", 10)
+    
+    local hrp = char:WaitForChild("HumanoidRootPart", 5)
     if hrp then
         hrp.CFrame = FARM_CFRAME
-        print("✅ Both in lobby - Teleported to 35, 18, -66")
+        print("✅ SUCCESS: Both in lobby - Forced teleport to 35, 18, -66")
     end
 end
 
@@ -61,37 +55,36 @@ task.spawn(function()
         task.wait(0.5)
 
         if game.PlaceId == LOBBY_ID then
-            goToPosition()
+            forceTeleport()   -- Much more aggressive
 
         elseif game.PlaceId == MATCH_ID then
             if localPlayer.Name == "NoahSt3alth16" then
-                local char = localPlayer.Character or localPlayer.CharacterAdded:Wait()
-                task.wait(0.6)
+                task.wait(0.5)
                 joinRanked()
 
             elseif localPlayer.Name == "irundhcom" then
-                print("irundhcom waiting 8.5 seconds...")
-                task.wait(8.5)
+                print("irundhcom waiting 7 seconds...")
+                task.wait(7)          -- Lowered even more
                 joinRanked()
             end
         end
     end
 end)
 
--- Character Respawn / Rejoin Handling
+-- Extra aggressive teleport on character added
 localPlayer.CharacterAdded:Connect(function()
     task.wait(1.2)
     if game.PlaceId == LOBBY_ID then
-        goToPosition()
+        forceTeleport()
     elseif game.PlaceId == MATCH_ID then
         if localPlayer.Name == "NoahSt3alth16" then
-            task.wait(0.6)
+            task.wait(0.5)
             joinRanked()
         elseif localPlayer.Name == "irundhcom" then
-            task.wait(13.87)
+            task.wait(7)
             joinRanked()
         end
     end
 end)
 
-print("🚀 v5 Running - Teleport should now work reliably when both are in lobby")
+print("🚀 v6 Running - Faster teleport + Lower delay")
