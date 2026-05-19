@@ -1,4 +1,4 @@
--- ================== NOAH'S RANKED DUELS AUTOFARM v6 ==================
+-- ================== NOAH'S RANKED DUELS AUTOFARM v7 ==================
 repeat task.wait() until game:IsLoaded()
 
 if game.Players.LocalPlayer.Name ~= "NoahSt3alth16" then
@@ -14,9 +14,9 @@ local localPlayer = Players.LocalPlayer
 
 local LOBBY_ID = 15424972165
 local MATCH_ID = 15486406772
-local FARM_CFRAME = CFrame.new(35, 18, -66)
+local TARGET_POSITION = Vector3.new(48, 18, -59)   -- Your new position
 
-print("✅ Noah's Ranked Autofarm v6 Loaded")
+print("✅ Noah's Ranked Autofarm v7 Loaded (New Position)")
 
 local function isAcc2InLobby()
     for _, plr in ipairs(Players:GetPlayers()) do
@@ -27,19 +27,24 @@ local function isAcc2InLobby()
     return false
 end
 
-local function forceTeleport()
+local function teleportToPosition()
     if game.PlaceId ~= LOBBY_ID then return end
-    if not isAcc2InLobby() then return end
-
-    local char = localPlayer.Character
-    if not char then 
-        char = localPlayer.CharacterAdded:Wait()
+    if not isAcc2InLobby() then 
+        print("Waiting for irundhcom to join lobby...")
+        return 
     end
-    
-    local hrp = char:WaitForChild("HumanoidRootPart", 5)
+
+    local character = localPlayer.Character
+    if not character then
+        character = localPlayer.CharacterAdded:Wait()
+    end
+
+    local hrp = character:FindFirstChild("HumanoidRootPart")
     if hrp then
-        hrp.CFrame = FARM_CFRAME
-        print("✅ SUCCESS: Both in lobby - Forced teleport to 35, 18, -66")
+        hrp.CFrame = CFrame.new(TARGET_POSITION)
+        print("✅ Both accounts in lobby → Teleported to " .. tostring(TARGET_POSITION))
+    else
+        print("❌ HumanoidRootPart not found")
     end
 end
 
@@ -55,7 +60,7 @@ task.spawn(function()
         task.wait(0.5)
 
         if game.PlaceId == LOBBY_ID then
-            forceTeleport()   -- Much more aggressive
+            teleportToPosition()
 
         elseif game.PlaceId == MATCH_ID then
             if localPlayer.Name == "NoahSt3alth16" then
@@ -64,18 +69,18 @@ task.spawn(function()
 
             elseif localPlayer.Name == "irundhcom" then
                 print("irundhcom waiting 7 seconds...")
-                task.wait(7)          -- Lowered even more
+                task.wait(7)
                 joinRanked()
             end
         end
     end
 end)
 
--- Extra aggressive teleport on character added
+-- Character Added Handler
 localPlayer.CharacterAdded:Connect(function()
     task.wait(1.2)
     if game.PlaceId == LOBBY_ID then
-        forceTeleport()
+        teleportToPosition()
     elseif game.PlaceId == MATCH_ID then
         if localPlayer.Name == "NoahSt3alth16" then
             task.wait(0.5)
@@ -87,4 +92,4 @@ localPlayer.CharacterAdded:Connect(function()
     end
 end)
 
-print("🚀 v6 Running - Faster teleport + Lower delay")
+print("🚀 v7 Running - Using new position (48, 18, -59)")
