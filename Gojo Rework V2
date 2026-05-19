@@ -1,4 +1,4 @@
--- ================== NOAH'S RANKED DUELS AUTOFARM v2 ==================
+-- ================== NOAH'S RANKED DUELS AUTOFARM v3 ==================
 repeat task.wait() until game:IsLoaded()
 
 if game.Players.LocalPlayer.Name ~= "NoahSt3alth16" then
@@ -16,15 +16,30 @@ local LOBBY_ID = 15424972165
 local MATCH_ID = 15486406772
 local FARM_CFRAME = CFrame.new(35, 18, -66)
 
-print("✅ Noah's Ranked Autofarm Loaded (irundhcom delayed 13.87s)")
+print("✅ Noah's Ranked Autofarm v3 Loaded (Synced)")
+
+local function isAcc2InLobby()
+    for _, plr in ipairs(Players:GetPlayers()) do
+        if plr.Name == _G.acc2 then
+            return true
+        end
+    end
+    return false
+end
 
 local function goToPosition()
     if game.PlaceId ~= LOBBY_ID then return end
-    local char = localPlayer.Character or localPlayer.CharacterAdded:Wait()
-    local hrp = char:WaitForChild("HumanoidRootPart", 6)
-    if hrp then
-        hrp.CFrame = FARM_CFRAME
-        print(localPlayer.Name .. " → Moved to farm position")
+    
+    -- Only move if BOTH accounts are in the lobby
+    if isAcc2InLobby() then
+        local char = localPlayer.Character or localPlayer.CharacterAdded:Wait()
+        local hrp = char:WaitForChild("HumanoidRootPart", 6)
+        if hrp then
+            hrp.CFrame = FARM_CFRAME
+            print("Both accounts in lobby → Teleported to farm position")
+        end
+    else
+        print("Waiting for irundhcom to return to lobby...")
     end
 end
 
@@ -37,23 +52,19 @@ end
 -- Main Loop
 task.spawn(function()
     while _G.toggle do
-        task.wait(0.7)
+        task.wait(0.8)
 
         if game.PlaceId == LOBBY_ID then
-            -- In Lobby: Keep both accounts at farm position
             goToPosition()
 
         elseif game.PlaceId == MATCH_ID then
-            -- In Ranked Match:
             if localPlayer.Name == "NoahSt3alth16" then
-                -- Noah joins fast
                 local char = localPlayer.Character or localPlayer.CharacterAdded:Wait()
                 task.wait(0.6)
                 joinRanked()
 
             elseif localPlayer.Name == "irundhcom" then
-                -- irundhcom waits 13.87 seconds
-                print("irundhcom waiting 13.87 seconds before joining...")
+                print("irundhcom waiting 13.87 seconds...")
                 task.wait(13.87)
                 joinRanked()
             end
@@ -61,9 +72,9 @@ task.spawn(function()
     end
 end)
 
--- Safety for character respawn
+-- Character Respawn Handling
 localPlayer.CharacterAdded:Connect(function()
-    task.wait(1)
+    task.wait(1.5)
     if game.PlaceId == LOBBY_ID then
         goToPosition()
     elseif game.PlaceId == MATCH_ID then
@@ -77,4 +88,4 @@ localPlayer.CharacterAdded:Connect(function()
     end
 end)
 
-print("🚀 Script Running - irundhcom delayed by 13.87s in match")
+print("🚀 Synced Autofarm Running - Noah waits for irundhcom before moving to position")
