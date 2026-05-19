@@ -1,4 +1,4 @@
--- ================== NOAH'S CUSTOM DUELS AUTOFARM ==================
+-- ================== NOAH'S FIXED DUELS AUTOFARM ==================
 repeat task.wait() until game:IsLoaded()
 
 if game.Players.LocalPlayer.Name ~= "NoahSt3alth16" then
@@ -6,20 +6,19 @@ if game.Players.LocalPlayer.Name ~= "NoahSt3alth16" then
 end
 
 _G.toggle = true
-_G.acc1 = "NoahSt3alth16"     -- Main (you)
-_G.acc2 = "irundhcom"         -- Alt
+_G.acc1 = "NoahSt3alth16"
+_G.acc2 = "irundhcom"
 
 local Players = game:GetService("Players")
-local TeleportService = game:GetService("TeleportService")
 local localPlayer = Players.LocalPlayer
 
 local LOBBY_PLACEID = 15424972165
 local MATCH_PLACEID = 15486406772
 local FARM_POSITION = CFrame.new(35, 18, -66)
 
-print("✅ Noah's Custom Duels Autofarm Loaded")
+print("✅ Noah's Fixed Duels Autofarm Loaded")
 
--- Teleport both to position in lobby
+-- Teleport to farm position in lobby
 local function goToFarmPosition()
     if game.PlaceId ~= LOBBY_PLACEID then return end
     local character = localPlayer.Character or localPlayer.CharacterAdded:Wait()
@@ -29,40 +28,51 @@ local function goToFarmPosition()
     end
 end
 
--- Join Ranked Duels
+-- Join Ranked
 local function joinRanked()
-    local args = { "ranked" }
+    local args = {"ranked"}
     game:GetService("ReplicatedStorage"):WaitForChild("RequestToJoin"):InvokeServer(unpack(args))
-    print("📩 Joined Ranked Duels")
+    print(localPlayer.Name .. " joined Ranked")
 end
 
--- Main Loop
+-- ===================== MAIN LOGIC =====================
 task.spawn(function()
     while _G.toggle do
-        task.wait(1)
-        
+        task.wait(0.7)
+
         if game.PlaceId == LOBBY_PLACEID then
-            -- Both accounts should be in lobby
+            -- Only teleport to position in lobby, do NOT join here
             goToFarmPosition()
-            task.wait(1.5)
-            joinRanked()   -- Noah joins immediately
-            
+
         elseif game.PlaceId == MATCH_PLACEID then
-            -- In Match
-            if localPlayer.Name == "irundhcom" then
-                task.wait(3)           -- 3 second delay for alt
+            -- ==================== IN MATCH ====================
+            if localPlayer.Name == "NoahSt3alth16" then
+                -- Noah joins instantly when character loads
+                local character = localPlayer.Character or localPlayer.CharacterAdded:Wait()
+                if character then
+                    task.wait(0.5)  -- small delay after character loads
+                    joinRanked()
+                end
+            elseif localPlayer.Name == "irundhcom" then
+                -- irundhcom joins after 3 seconds
+                task.wait(3)
                 joinRanked()
             end
         end
     end
 end)
 
--- Auto teleport back to position when returning to lobby
-Players.LocalPlayer.CharacterAdded:Connect(function()
-    if game.PlaceId == LOBBY_PLACEID then
-        task.wait(2)
-        goToFarmPosition()
+-- Extra safety: Re-join if character respawns in match
+localPlayer.CharacterAdded:Connect(function()
+    if game.PlaceId == MATCH_PLACEID then
+        task.wait(1)
+        if localPlayer.Name == "NoahSt3alth16" then
+            joinRanked()
+        elseif localPlayer.Name == "irundhcom" then
+            task.wait(3)
+            joinRanked()
+        end
     end
 end)
 
-print("🚀 Script is now running - Noah controls both accounts")
+print("🚀 Script Ready - Noah only joins in the match place")
