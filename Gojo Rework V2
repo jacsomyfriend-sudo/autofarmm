@@ -1,0 +1,68 @@
+-- ================== NOAH'S CUSTOM DUELS AUTOFARM ==================
+repeat task.wait() until game:IsLoaded()
+
+if game.Players.LocalPlayer.Name ~= "NoahSt3alth16" then
+    return print("❌ This script can only be run on NoahSt3alth16")
+end
+
+_G.toggle = true
+_G.acc1 = "NoahSt3alth16"     -- Main (you)
+_G.acc2 = "irundhcom"         -- Alt
+
+local Players = game:GetService("Players")
+local TeleportService = game:GetService("TeleportService")
+local localPlayer = Players.LocalPlayer
+
+local LOBBY_PLACEID = 15424972165
+local MATCH_PLACEID = 15486406772
+local FARM_POSITION = CFrame.new(35, 18, -66)
+
+print("✅ Noah's Custom Duels Autofarm Loaded")
+
+-- Teleport both to position in lobby
+local function goToFarmPosition()
+    if game.PlaceId ~= LOBBY_PLACEID then return end
+    local character = localPlayer.Character or localPlayer.CharacterAdded:Wait()
+    local hrp = character:WaitForChild("HumanoidRootPart", 5)
+    if hrp then
+        hrp.CFrame = FARM_POSITION
+    end
+end
+
+-- Join Ranked Duels
+local function joinRanked()
+    local args = { "ranked" }
+    game:GetService("ReplicatedStorage"):WaitForChild("RequestToJoin"):InvokeServer(unpack(args))
+    print("📩 Joined Ranked Duels")
+end
+
+-- Main Loop
+task.spawn(function()
+    while _G.toggle do
+        task.wait(1)
+        
+        if game.PlaceId == LOBBY_PLACEID then
+            -- Both accounts should be in lobby
+            goToFarmPosition()
+            task.wait(1.5)
+            joinRanked()   -- Noah joins immediately
+            
+        elseif game.PlaceId == MATCH_PLACEID then
+            -- In Match
+            if localPlayer.Name == "irundhcom" then
+                task.wait(3)           -- 3 second delay for alt
+                joinRanked()
+            end
+        end
+    end
+end)
+
+-- Auto teleport back to position when returning to lobby
+Players.LocalPlayer.CharacterAdded:Connect(function()
+    if game.PlaceId == LOBBY_PLACEID then
+        task.wait(2)
+        goToFarmPosition()
+    end
+end)
+
+print("🚀 Script is now running - Noah controls both accounts")
