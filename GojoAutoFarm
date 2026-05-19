@@ -1,0 +1,268 @@
+repeat task.wait(0) until game:IsLoaded()
+
+print("started")
+
+_G.toggle = true
+local HttpService = game:GetService("HttpService")
+local JSON_FILE = "farm_count.json"
+local LOBBY_FILE = "lobby_place.json"
+local PLACE_ID = 15424972165
+local Players = game:GetService("Players")
+local TeleportService = game:GetService("TeleportService")
+local localPlayer = Players.LocalPlayer
+
+-- ======= TURN COUNT =======
+
+local function getCount()
+    if not (readfile and isfile and isfile(JSON_FILE)) then
+        return 1
+    end
+    
+    local ok, result = pcall(function()
+        local file = readfile(JSON_FILE)
+        local data = HttpService:JSONDecode(file)
+        return data.count or 1
+    end)
+    
+    return ok and result or 1
+end
+
+local function updateCount(newCount)
+    local data = {count = newCount or 1}
+    local json = HttpService:JSONEncode(data)
+    
+    if writefile then
+        writefile(JSON_FILE, json)
+        return true
+    end
+    return false
+end
+
+-- ======= LOBBY PLACE ID (RANDOM) =======
+
+local function getLobbyPlaceId()
+    if not (readfile and isfile and isfile(LOBBY_FILE)) then
+        return nil
+    end
+
+    local ok, result = pcall(function()
+        local file = readfile(LOBBY_FILE)
+        local data = HttpService:JSONDecode(file)
+        return data.placeId
+    end)
+
+    if ok then
+        return result
+    end
+    return nil
+end
+
+local function updateLobbyPlaceId(placeId)
+    if not writefile then
+        return
+    end
+
+    local data = {placeId = placeId}
+    local json = HttpService:JSONEncode(data)
+    writefile(LOBBY_FILE, json)
+end
+
+-- ======= ACCOUNT PRESENCE =======
+
+local function areBothAccountsInServer()
+    if not _G.acc1 or not _G.acc2 then
+        return false
+    end
+    
+    local acc1InServer = false
+    local acc2InServer = false
+    
+    for _, player in ipairs(Players:GetPlayers()) do
+        if player.Name == _G.acc1 then
+            acc1InServer = true
+        end
+        if player.Name == _G.acc2 then
+            acc2InServer = true
+        end
+        
+        if acc1InServer and acc2InServer then
+            return true
+        end
+    end
+    
+    return acc1InServer and acc2InServer
+end
+
+-- When one of the linked accounts leaves, follow them back to the last known lobby
+local function onPlayerRemoving(player)
+    if not _G.toggle then return end
+    if not _G.acc1 or not _G.acc2 then return end
+
+    if player.Name == _G.acc1 or player.Name == _G.acc2 then
+        -- Only act if the *other* linked account (local) is still here
+        if player ~= localPlayer then
+            local lobbyId = getLobbyPlaceId()
+            if lobbyId and lobbyId ~= game.PlaceId then
+                TeleportService:Teleport(lobbyId, localPlayer)
+            end
+        end
+    end
+end
+
+Players.PlayerRemoving:Connect(onPlayerRemoving)
+
+-- ======= MAIN SCRIPT =======
+
+if _G.toggle then
+
+local screenGui = Instance.new("ScreenGui")
+screenGui.Name = "RankOverlay"
+screenGui.DisplayOrder = 10  
+screenGui.IgnoreGuiInset = true  
+screenGui.ResetOnSpawn = false
+screenGui.Parent = game:GetService("Players").LocalPlayer:WaitForChild("PlayerGui")
+
+local background = Instance.new("Frame")
+background.Name = "Background"
+background.Size = UDim2.new(1, 0, 1, 0)  
+background.BackgroundColor3 = Color3.new(0, 0, 0) 
+background.BorderSizePixel = 0
+background.Parent = screenGui
+
+local rankText = Instance.new("TextLabel")
+rankText.Name = "RankText"
+rankText.Size = UDim2.new(0, 400, 0, 100)
+rankText.Position = UDim2.new(0.5, -200, 0.5, -50)  
+rankText.AnchorPoint = Vector2.new(0.5, 0.5)  
+rankText.BackgroundTransparency = 1  
+rankText.TextColor3 = Color3.new(1, 1, 1) 
+rankText.TextSize = 48
+rankText.Font = Enum.Font.GothamBold
+rankText.TextStrokeTransparency = 0.5
+rankText.TextStrokeColor3 = Color3.new(0, 0, 0)
+rankText.Parent = background
+
+local isVisible = true
+
+local function toggleVisibility()
+    isVisible = not isVisible
+    background.Visible = isVisible
+end
+
+local UserInputService = game:GetService("UserInputService")
+local function onInputBegan(input, gameProcessed)
+    if not gameProcessed and input.KeyCode == Enum.KeyCode.P then
+        toggleVisibility()
+    end
+end
+
+UserInputService.InputBegan:Connect(onInputBegan)
+
+local function updateRank()
+    local success, result = pcall(function()
+        local rankValue = game:GetService("Players").LocalPlayer.leaderstats["Solo Rank"].Value
+        rankText.Text = "Rank: 👑" .. tostring(rankValue)
+    end)
+    
+    if not success then
+        rankText.Text = "Rank: N/A"
+    end
+end
+
+task.spawn(function()
+    local webhookUrl = "https://discordapp.com/api/webhooks/1462392089433346172/h3cCbMQQ8TBctGbLHU2uq1GWMvyzl4_cBSUNfP5thufwpmbnlK40tV9s6BRyf9-PFFfs"
+
+    local player = game:GetService("Players").LocalPlayer
+    local coinsText = game:GetService("Players").LocalPlayer.leaderstats["Solo Rank"].Value
+    local message = player.Name .. " Solo Rank: " .. coinsText
+
+    local requestBody = game:GetService("HttpService"):JSONEncode({
+        content = message
+    })
+
+    request({
+        Url = webhookUrl,
+        Method = "POST",
+        Headers = {
+            ["Content-Type"] = "application/json"
+        },
+        Body = requestBody
+    })
+
+    updateRank()
+
+    local leaderstats = game:GetService("Players").LocalPlayer:WaitForChild("leaderstats")
+    local soloRank = leaderstats:WaitForChild("Solo Rank")
+
+    soloRank:GetPropertyChangedSignal("Value"):Connect(updateRank)
+end)
+
+local tped = false
+
+if game.PlaceId == PLACE_ID then
+    -- In farm place: wait for both accounts, then move to farm CFrame
+    repeat 
+        task.wait()
+    until areBothAccountsInServer()
+    
+    if localPlayer.Character and localPlayer.Character:FindFirstChild("HumanoidRootPart") then
+        localPlayer.Character.HumanoidRootPart.CFrame = CFrame.new(193, 439, -1078)
+    end
+
+else
+    -- In *any* lobby (random place IDs): remember this as the lobby ID
+    updateLobbyPlaceId(game.PlaceId)
+
+    repeat 
+        task.wait()
+    until areBothAccountsInServer()
+        and localPlayer.Character
+        and localPlayer.Character:FindFirstChild("HumanoidRootPart")
+
+    game:GetService("StarterGui"):SetCore("SendNotification", {
+        Title = getCount(), 
+        Duration = 10,   
+        Button1 = "",  
+        Callback = CatNotification,
+        Text = ""
+    })
+
+    if (_G.acc1 == localPlayer.Name and getCount() == 1) or 
+       (_G.acc2 == localPlayer.Name and getCount() == 2) then
+
+        game:GetService("StarterGui"):SetCore("SendNotification", {
+            Title = "Reset " .. getCount(), 
+            Duration = 10,   
+            Button1 = "",  
+            Text = ""
+        })
+        
+        local character = localPlayer.Character
+        if character then
+            local humanoid = character:FindFirstChild("Humanoid")
+            if humanoid then
+                humanoid:ChangeState(Enum.HumanoidStateType.Dead)
+            end
+        end
+        
+        localPlayer.CharacterAdded:Wait()
+
+        tped = true
+        task.wait(0) 
+        TeleportService:Teleport(PLACE_ID, localPlayer)
+    end
+    
+    repeat
+        task.wait()
+    until tped
+
+    if getCount() == 1 then
+        updateCount(2)
+    else
+        updateCount(1)
+    end
+
+    TeleportService:Teleport(PLACE_ID, localPlayer)
+end
+
+end
