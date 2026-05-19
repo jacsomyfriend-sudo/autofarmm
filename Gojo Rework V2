@@ -71,7 +71,7 @@ task.spawn(function()
 
             elseif localPlayer.Name == "irundhcom" then
                 print("irundhcom waiting 13.24 seconds...")
-                task.wait(13.24)
+                task.wait(13.09)
                 joinRanked()
             end
         end
