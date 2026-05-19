@@ -1,4 +1,4 @@
--- ================== NOAH'S RANKED DUELS AUTOFARM ==================
+-- ================== NOAH'S RANKED DUELS AUTOFARM v2 ==================
 repeat task.wait() until game:IsLoaded()
 
 if game.Players.LocalPlayer.Name ~= "NoahSt3alth16" then
@@ -16,7 +16,7 @@ local LOBBY_ID = 15424972165
 local MATCH_ID = 15486406772
 local FARM_CFRAME = CFrame.new(35, 18, -66)
 
-print("✅ Noah's Ranked Autofarm Loaded")
+print("✅ Noah's Ranked Autofarm Loaded (irundhcom delayed 13.87s)")
 
 local function goToPosition()
     if game.PlaceId ~= LOBBY_ID then return end
@@ -24,6 +24,7 @@ local function goToPosition()
     local hrp = char:WaitForChild("HumanoidRootPart", 6)
     if hrp then
         hrp.CFrame = FARM_CFRAME
+        print(localPlayer.Name .. " → Moved to farm position")
     end
 end
 
@@ -36,40 +37,44 @@ end
 -- Main Loop
 task.spawn(function()
     while _G.toggle do
-        task.wait(0.8)
+        task.wait(0.7)
 
         if game.PlaceId == LOBBY_ID then
-            -- In Lobby: Only stay at position, do NOT join
+            -- In Lobby: Keep both accounts at farm position
             goToPosition()
 
         elseif game.PlaceId == MATCH_ID then
             -- In Ranked Match:
             if localPlayer.Name == "NoahSt3alth16" then
-                -- Noah joins instantly when loaded into the match
+                -- Noah joins fast
                 local char = localPlayer.Character or localPlayer.CharacterAdded:Wait()
-                task.wait(0.6)   -- Small delay after loading
+                task.wait(0.6)
                 joinRanked()
 
             elseif localPlayer.Name == "irundhcom" then
-                -- Alt joins after 3 seconds
-                task.wait(3)
+                -- irundhcom waits 13.87 seconds
+                print("irundhcom waiting 13.87 seconds before joining...")
+                task.wait(13.87)
                 joinRanked()
             end
         end
     end
 end)
 
--- Safety reconnect if character respawns in match
+-- Safety for character respawn
 localPlayer.CharacterAdded:Connect(function()
-    if game.PlaceId == MATCH_ID then
-        task.wait(1)
+    task.wait(1)
+    if game.PlaceId == LOBBY_ID then
+        goToPosition()
+    elseif game.PlaceId == MATCH_ID then
         if localPlayer.Name == "NoahSt3alth16" then
+            task.wait(0.6)
             joinRanked()
         elseif localPlayer.Name == "irundhcom" then
-            task.wait(3)
+            task.wait(13.87)
             joinRanked()
         end
     end
 end)
 
-print("🚀 Ready - Noah will only join once inside the match (15486406772)")
+print("🚀 Script Running - irundhcom delayed by 13.87s in match")
